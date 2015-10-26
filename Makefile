@@ -1,0 +1,60 @@
+CC  := gcc
+CXX := g++
+
+CXXFLAGS := -std=c++11 -Wall -O3
+
+.PHONY: all clean
+
+NODEPS := clean
+
+SRCDIR := src
+BLDDIR := .build
+EXEDIR := bin
+
+SRCS := $(shell find $(SRCDIR) -name "*.cc")
+OBJS := $(patsubst $(SRCDIR)/%.cc,$(BLDDIR)/%.o,$(SRCS))
+DEPS := $(patsubst %.o,%.d,$(OBJS))
+
+GREP_EXE := grep -r '^ *int *main *(' $(SRCDIR) | cut -d':' -f1
+EXES := $(patsubst $(SRCDIR)/%.cc,$(EXEDIR)/%,$(shell $(GREP_EXE)))
+
+all: $(EXES)
+
+test: bin/sigmoid-bench
+
+#Don't create dependencies when we're cleaning, for instance
+ifeq (0, $(words $(findstring $(MAKECMDGOALS), $(NODEPS))))
+-include $(DEPS)
+endif
+
+# create dependencies
+$(BLDDIR)/%.d: $(SRCDIR)/%.cc
+	@echo DP $(notdir $@)
+	@$(CXX) $(CXXFLAGS) -MM -MT '$(patsubst $(SRCDIR)/%.cc,$(BLDDIR)/%.o,$<)' $< -MF $@
+
+# compile objects
+$(BLDDIR)/%.o : $(SRCDIR)/%.cc
+	@echo CC $(notdir $@)
+	@$(CXX) -c -I$(SRCDIR) $(CXXFLAGS) $< -o $@
+
+# link executables
+$(EXEDIR)/% : $(BLDDIR)/%.o
+	@echo LD $(notdir $@)
+	@$(CXX) $(filter %.o,$^) -o $@ $(LIBS) -lboost_program_options
+
+# directories as order-only-prerequisites
+$(OBJS) $(DEPS): | $(BLDDIR)
+$(EXES): | $(EXEDIR)
+
+# make directories
+$(BLDDIR) $(EXEDIR):
+	mkdir $@
+
+clean:
+	@rm -vfr $(BLDDIR) $(EXEDIR)
+
+$(EXEDIR)/sigmoid-bench: test/sigmoid-bench.cc | $(EXEDIR)
+	@echo CC $(notdir $@)
+	@$(CC) -Wall -O3 -o $@ $< -lm
+
+$(EXEDIR)/test_save: $(BLDDIR)/network.o
