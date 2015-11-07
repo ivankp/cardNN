@@ -29,7 +29,7 @@ public:
   );
 
   // Read a network from a dot file
-  network(const char* filename);
+  network(std::istream& in);
 
   // Reset cards' states
   // Call at the beginning of every game

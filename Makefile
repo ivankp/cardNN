@@ -3,7 +3,12 @@ CXX := g++
 
 CXXFLAGS := -std=c++11 -Wall -O3
 
-LIBS := -lboost_program_options
+LIBS := #-lboost_program_options
+
+# Use boost libraries if GCC version doesn't support std equivalents
+# ifneq ($(shell printf "%s\n4.9\n" `gcc --version | sed -n 's/^gcc .* //p'` | sort -V | head -1),4.9)
+# LIBS += -lboost_regex
+# endif
 
 .PHONY: all clean
 

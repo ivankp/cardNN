@@ -2,11 +2,49 @@
 
 #include <iostream>
 #include <iomanip>
+// #include <sstream>
+#include <string>
+#include <vector>
 #include <random>
+#include <stdexcept>
 #include <cmath>
 // #include <chrono>
 
-using namespace std;
+/*
+#define GCC_VERSION (__GNUC__ * 10000 \
+                              + __GNUC_MINOR__ * 100 \
+                              + __GNUC_PATCHLEVEL__)
+
+#if GCC_VERSION < 40900 // Test for GCC < 4.9.0
+#include <boost/regex.hpp>
+using boost::regex;
+using boost::smatch;
+using boost::regex_match;
+#define regex_icase boost::regex::icase
+#else
+#include <regex>
+using std::regex;
+using std::smatch;
+using std::regex_match;
+using std::regex_constants::icase;
+#define regex_icase std::regex_constants::icase
+#endif
+*/
+
+#define test(var) \
+  std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
+
+using std::cout;
+using std::cerr;
+using std::endl;
+using std::setw;
+using std::setprecision;
+using std::fixed;
+using std::string;
+using std::to_string;
+using std::pair;
+using std::vector;
+using std::runtime_error;
 
 network::network(unsigned ncards, // cards in deck (must be a multiple of 4)
                  unsigned nts,    // trump states
@@ -96,7 +134,7 @@ void network::save(std::ostream& out,
   }
   out << '\n';
 
-  out << "states [label =\"";
+  out << "states [label=\"";
   for (size_t i=0, n=states.size(); i<n; ++i) {
     if (i) out << '|';
     if (i%4==0) out << "\\\n";
@@ -115,7 +153,7 @@ void network::save(std::ostream& out,
   }
   out << '\n';
 
-  out << "actions [label =\"";
+  out << "actions [label=\"";
   for (size_t i=0, n=layers.back().size(); i<n; ++i) {
     if (i) out << '|';
     if (i%4==0) out << "\\\n";
@@ -150,6 +188,79 @@ void network::save(std::ostream& out,
   out.flags(flags);
 }
 
-network::network(const char* filename) {
+network::network(std::istream& in) {
+  string dot(std::istreambuf_iterator<char>(in), {});
 
+  for (auto& nodes : {
+    std::make_pair("trump",&trumps),
+    std::make_pair("plain",&plains)
+  }) {
+
+    int i1 = 0;
+    size_t pos = 0;
+    while ((pos=dot.find(nodes.first+to_string(i1++),pos))!=string::npos) {
+      nodes.second->emplace_back();
+
+      const size_t l = dot.find("[label=\"{",pos)+9;
+      const size_t r = dot.find("}\"];",pos);
+
+      if (l==string::npos || r==string::npos)
+        throw runtime_error("Badly formatted label");
+
+      string label = dot.substr(l,r-l);
+
+      size_t pos2 = 0;
+      while((pos2=label.find("\\\n",pos2))!=string::npos)
+        label.erase(pos2,2);
+      test(label)
+
+      int i2 = 0;
+      pos2 = 0;
+      string i2s;
+      while ((pos2=label.find(i2s='<'+to_string(i2++)+'>',pos2))!=string::npos) {
+        const size_t l = pos2+i2s.size();
+        const size_t r = label.find('|',l);
+        nodes.second->back().push_back({std::stof(label.substr(l,r-l))});
+        pos2 = r+1;
+      }
+
+      for (auto& t : nodes.second->back()) test(t.field)
+    }
+
+    if (nodes.second->size()==0)
+      throw runtime_error(string("No ")+nodes.first+" nodes in NN file");
+
+  }
+
+  {
+    size_t pos = dot.find("states");
+    if (pos!=string::npos) {
+
+      const size_t l = dot.find("[label=\"",pos)+8;
+      const size_t r = dot.find("\"];",pos);
+
+      if (l==string::npos || r==string::npos)
+        throw runtime_error("Badly formatted label");
+
+      string label = dot.substr(l,r-l);
+
+      size_t pos2 = 0;
+      while((pos2=label.find("\\\n",pos2))!=string::npos)
+        label.erase(pos2,2);
+      test(label)
+
+      int i2 = 0;
+      pos2 = 0;
+      string i2s;
+      while ((pos2=label.find(i2s='<'+to_string(i2++)+'>',pos2))!=string::npos) {
+        pos2 = label.find('|',pos2+i2s.size())+1;
+      }
+
+      if (i2) states.resize(i2-1);
+      else throw runtime_error("Empty states label in NN file");
+      test(states.size())
+
+    } else throw runtime_error("No states nodes in NN file");
+
+  }
 }
