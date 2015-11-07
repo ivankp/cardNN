@@ -1,5 +1,5 @@
-#ifndef solaris_neural_net_hh
-#define solaris_neural_net_hh
+#ifndef neural_net_hh
+#define neural_net_hh
 
 #include <iosfwd>
 #include <vector>
@@ -21,16 +21,31 @@ class network {
   std::vector<std::vector<neuron>> layers;
 
 public:
+  // Generate a new network with random weights
   network(unsigned ncards, // cards in deck (must be a multiple of 4)
           unsigned nts,    // trump states
           unsigned nps,    // plain states
           const std::vector<unsigned>& nlayers // hidden neuron layers
   );
 
-  void reset(unsigned trump_suit) noexcept;
-  void set_state(unsigned card, unsigned state) noexcept;
+  // Read a network from a dot file
+  network(const char* filename);
+
+  // Reset cards' states
+  // Call at the beginning of every game
+  void reset_states(unsigned trump_suit) noexcept;
+
+  // Compute fields
+  // Call before getting new output fields' values
   void eval() noexcept;
-  val_t get_field(unsigned action) noexcept;
+
+  inline void set_state(unsigned card, unsigned state) noexcept {
+    states[card].field = (*states[card].fields)[state].field;
+  }
+  inline val_t get_field(unsigned action) const noexcept {
+    return layers.back()[action].field;
+  }
+
   void save(std::ostream& out,
             const char*(*card)(int),
             const char*(*act)(int));

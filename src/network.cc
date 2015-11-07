@@ -37,19 +37,11 @@ network::network(unsigned ncards, // cards in deck (must be a multiple of 4)
   }
 }
 
-void network::reset(unsigned trump_suit) noexcept {
+void network::reset_states(unsigned trump_suit) noexcept {
   for (size_t i=0, n=states.size(); i<n; ++i)
     states[i].field = (*(
       states[i].fields = (i%4==trump_suit) ? &plains[i/4] : &trumps[i/4]
     ))[0].field;
-}
-
-void network::set_state(unsigned card, unsigned state) noexcept {
-  states[card].field = (*states[card].fields)[state].field;
-}
-
-network::val_t network::get_field(unsigned action) noexcept {
-  return layers.back()[action].field;
 }
 
 void network::eval() noexcept {
@@ -68,6 +60,10 @@ void network::eval() noexcept {
       field = tanh(field); // apply transfer function
     }
   }
+
+  for (auto x : states) cout << x.field << endl;
+  cout << endl;
+  for (auto x : layers.back()) cout << x.field << endl;
 }
 
 void network::save(std::ostream& out,
@@ -156,4 +152,8 @@ void network::save(std::ostream& out,
 
   out << '}';
   out.flags(flags);
+}
+
+network::network(const char* filename) {
+
 }
