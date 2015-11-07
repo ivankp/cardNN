@@ -13,6 +13,7 @@ public:
   durak(network* nn1=nullptr, network* nn2=nullptr);
 
   virtual void print_card(int card) override;
+  virtual void print_trump();
 
   virtual bool is_playable(int action) const override;
   virtual int play() override;

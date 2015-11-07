@@ -60,10 +60,6 @@ void network::eval() noexcept {
       field = tanh(field); // apply transfer function
     }
   }
-
-  for (auto x : states) cout << x.field << endl;
-  cout << endl;
-  for (auto x : layers.back()) cout << x.field << endl;
 }
 
 void network::save(std::ostream& out,

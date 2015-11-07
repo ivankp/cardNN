@@ -12,6 +12,8 @@ int main(int argc, char **argv)
 
   durak game(&nn);
 
+  game.print_trump();
+
   game.print_hand(0);
   game.print_hand(1);
   cout << endl;

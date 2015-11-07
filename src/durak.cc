@@ -34,10 +34,6 @@ durak::durak(network* nn1, network* nn2)
 : rules(ncards,nn1,nn2)
 {
   const int trump_card = deck.front();
-  *out << "Trump: ";
-  print_card(trump_card);
-  *out << endl << endl;
-
   for (int i=0; i<2; ++i) {
     if (nn[i]) {
       nn[i]->reset_states(trump_card%4);
@@ -47,6 +43,12 @@ durak::durak(network* nn1, network* nn2)
 
   deal(0);
   deal(1);
+}
+
+void durak::print_trump() {
+  *out << "Trump: ";
+  print_card(deck.front());
+  *out << endl << endl;
 }
 
 void durak::deal(int h) {
