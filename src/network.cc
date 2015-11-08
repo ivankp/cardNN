@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <iomanip>
-// #include <sstream>
 #include <string>
 #include <vector>
 #include <random>
@@ -10,41 +9,10 @@
 #include <cmath>
 // #include <chrono>
 
-/*
-#define GCC_VERSION (__GNUC__ * 10000 \
-                              + __GNUC_MINOR__ * 100 \
-                              + __GNUC_PATCHLEVEL__)
-
-#if GCC_VERSION < 40900 // Test for GCC < 4.9.0
-#include <boost/regex.hpp>
-using boost::regex;
-using boost::smatch;
-using boost::regex_match;
-#define regex_icase boost::regex::icase
-#else
-#include <regex>
-using std::regex;
-using std::smatch;
-using std::regex_match;
-using std::regex_constants::icase;
-#define regex_icase std::regex_constants::icase
-#endif
-*/
-
 #define test(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
 
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::setw;
-using std::setprecision;
-using std::fixed;
-using std::string;
-using std::to_string;
-using std::pair;
-using std::vector;
-using std::runtime_error;
+using namespace std;
 
 network::network(unsigned ncards, // cards in deck (must be a multiple of 4)
                  unsigned nts,    // trump states
@@ -86,7 +54,7 @@ void network::eval() noexcept {
   for (size_t i=0, n=layers[0].size(); i<n; ++i) {
     auto& field = layers[0][i].field;
     field = 0.;
-    for (auto s : states) field += s.field;
+    for (const auto& s : states) field += s.field;
     field = tanh(field);
   }
   for (size_t l=1, nl = layers.size(); l<nl; ++l) {
@@ -188,6 +156,14 @@ void network::save(std::ostream& out,
   out.flags(flags);
 }
 
+/*
+void replace_all(string& str, const string& from, const string& to) {
+  size_t pos = 0;
+  while((pos=label.find(from,pos))!=string::npos)
+    label.replace(pos,from.size(),to);
+}
+*/
+
 network::network(std::istream& in) {
   string dot(std::istreambuf_iterator<char>(in), {});
 
@@ -261,6 +237,116 @@ network::network(std::istream& in) {
       test(states.size())
 
     } else throw runtime_error("No states nodes in NN file");
+  }
+
+  {
+    int i1 = 0;
+    size_t pos = 0;
+    string layer_str;
+    while ((pos=dot.find(layer_str="layer"+to_string(i1++),pos))!=string::npos) {
+      layers.emplace_back();
+
+      const size_t l = dot.find("[label=\"",pos)+8;
+      const size_t r = dot.find("\"];",pos);
+
+      if (l==string::npos || r==string::npos)
+        throw runtime_error("Badly formatted label");
+
+      string label = dot.substr(l,r-l);
+
+      size_t pos2 = 0;
+      while((pos2=label.find("\\\n",pos2))!=string::npos)
+        label.erase(pos2,2);
+      test(label)
+
+      int i2 = 0;
+      pos2 = 0;
+      string i2s;
+      while ((pos2=label.find(i2s='<'+to_string(i2++)+'>',pos2))!=string::npos) {
+        pos2 = label.find('|',pos2+i2s.size())+1;
+      }
+
+      if (i2) layers.back().resize(i2-1);
+      else throw runtime_error("Empty "+layer_str+" label in NN file");
+      test(layers.back().size())
+    }
+  }
+
+  {
+    layers.emplace_back();
+
+    size_t pos = dot.find("actions");
+    if (pos!=string::npos) {
+
+      const size_t l = dot.find("[label=\"",pos)+8;
+      const size_t r = dot.find("\"];",pos);
+
+      if (l==string::npos || r==string::npos)
+        throw runtime_error("Badly formatted label");
+
+      string label = dot.substr(l,r-l);
+
+      size_t pos2 = 0;
+      while((pos2=label.find("\\\n",pos2))!=string::npos)
+        label.erase(pos2,2);
+      test(label)
+
+      int i2 = 0;
+      pos2 = 0;
+      string i2s;
+      while ((pos2=label.find(i2s='<'+to_string(i2++)+'>',pos2))!=string::npos) {
+        pos2 = label.find('|',pos2+i2s.size())+1;
+      }
+
+      if (i2) layers.back().resize(i2-1);
+      else throw runtime_error("Empty actions label in NN file");
+      test(layers.back().size())
+
+    } else throw runtime_error("No actions nodes in NN file");
+  }
+
+  {
+    vector<string> names { "states" };
+    for (size_t i=0; i<layers.size(); ++i)
+      names.emplace_back("layer"+to_string(i));
+    names.emplace_back("actions");
+
+    size_t pos = 0;
+    for (size_t i1=0, n1=layers.size(); i1!=n1; ++i1) {
+      for (size_t i2=0, n2=layers[i1].size(); i2!=n2;) {
+        auto& w = layers[i1][i2].weights;
+        string str;
+        size_t pos2 = dot.find(
+          str = ':' + to_string(w.size()) + " -> "
+          + ( i1==n1-1 ? string("actions") : "layer"+to_string(i1) )
+          + ':' + to_string(i2),
+          pos
+        );
+        if (pos2==string::npos) {
+          ++i2;
+          continue;
+        } else {
+          pos = pos2;
+        }
+        test(str)
+        pos = dot.find('[',pos);
+        pos = dot.find("weight",pos);
+        pos2 = dot.find("=",pos)+1;
+        test(pos)
+        test(dot.substr(pos2,(pos=dot.find(']',pos2))-pos2))
+        w.push_back(stof(dot.substr(pos2,(pos=dot.find(']',pos2))-pos2)));
+        test(pos)
+      }
+    }
+
+    // check that all layers got weights
+    for (size_t l=0, nl=layers.size(); l<nl; ++l) {
+      for (auto& x : layers[l]) {
+        if (x.weights.size() != (l==0 ? states.size() : layers[l-1].size()) )
+          throw runtime_error("Number of weights does not match the "
+                              "number of preceding layers");
+      }
+    }
 
   }
 }
