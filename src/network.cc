@@ -188,7 +188,6 @@ network::network(std::istream& in) {
       size_t pos2 = 0;
       while((pos2=label.find("\\\n",pos2))!=string::npos)
         label.erase(pos2,2);
-      test(label)
 
       int i2 = 0;
       pos2 = 0;
@@ -199,8 +198,6 @@ network::network(std::istream& in) {
         nodes.second->back().push_back({std::stof(label.substr(l,r-l))});
         pos2 = r+1;
       }
-
-      for (auto& t : nodes.second->back()) test(t.field)
     }
 
     if (nodes.second->size()==0)
@@ -223,7 +220,6 @@ network::network(std::istream& in) {
       size_t pos2 = 0;
       while((pos2=label.find("\\\n",pos2))!=string::npos)
         label.erase(pos2,2);
-      test(label)
 
       int i2 = 0;
       pos2 = 0;
@@ -234,7 +230,6 @@ network::network(std::istream& in) {
 
       if (i2) states.resize(i2-1);
       else throw runtime_error("Empty states label in NN file");
-      test(states.size())
 
     } else throw runtime_error("No states nodes in NN file");
   }
@@ -257,7 +252,6 @@ network::network(std::istream& in) {
       size_t pos2 = 0;
       while((pos2=label.find("\\\n",pos2))!=string::npos)
         label.erase(pos2,2);
-      test(label)
 
       int i2 = 0;
       pos2 = 0;
@@ -268,7 +262,6 @@ network::network(std::istream& in) {
 
       if (i2) layers.back().resize(i2-1);
       else throw runtime_error("Empty "+layer_str+" label in NN file");
-      test(layers.back().size())
     }
   }
 
@@ -289,7 +282,6 @@ network::network(std::istream& in) {
       size_t pos2 = 0;
       while((pos2=label.find("\\\n",pos2))!=string::npos)
         label.erase(pos2,2);
-      test(label)
 
       int i2 = 0;
       pos2 = 0;
@@ -300,7 +292,6 @@ network::network(std::istream& in) {
 
       if (i2) layers.back().resize(i2-1);
       else throw runtime_error("Empty actions label in NN file");
-      test(layers.back().size())
 
     } else throw runtime_error("No actions nodes in NN file");
   }
@@ -315,9 +306,8 @@ network::network(std::istream& in) {
     for (size_t i1=0, n1=layers.size(); i1!=n1; ++i1) {
       for (size_t i2=0, n2=layers[i1].size(); i2!=n2;) {
         auto& w = layers[i1][i2].weights;
-        string str;
         size_t pos2 = dot.find(
-          str = ':' + to_string(w.size()) + " -> "
+          ':' + to_string(w.size()) + " -> "
           + ( i1==n1-1 ? string("actions") : "layer"+to_string(i1) )
           + ':' + to_string(i2),
           pos
@@ -328,14 +318,10 @@ network::network(std::istream& in) {
         } else {
           pos = pos2;
         }
-        test(str)
         pos = dot.find('[',pos);
         pos = dot.find("weight",pos);
         pos2 = dot.find("=",pos)+1;
-        test(pos)
-        test(dot.substr(pos2,(pos=dot.find(']',pos2))-pos2))
         w.push_back(stof(dot.substr(pos2,(pos=dot.find(']',pos2))-pos2)));
-        test(pos)
       }
     }
 
