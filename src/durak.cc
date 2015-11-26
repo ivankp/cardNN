@@ -43,6 +43,8 @@ durak::durak(network* nn1, network* nn2)
 
   deal(0);
   deal(1);
+
+  adding = false;
 }
 
 void durak::print_trump() {
@@ -61,7 +63,6 @@ void durak::deal(int h) {
 }
 
 // TODO:
-// -- give some of the same-number cards if taken
 // -- play multiple cards?
 
 // Check if the card is in the currently played hand
@@ -71,35 +72,50 @@ bool durak::in_hand(int card) const {
 }
 
 bool durak::is_playable(int action) const {
-  if (action<ncards) {
-    if (!in_hand(action)) return false;
-    if (table.size()==0) return true;
-
-    if (table.size()%2) { // need to beat
-
-      if ((table.back()%4)==(action%4)) {
-        return ((table.back()/4) <(action/4));
-      } else {
-        return ((action%4)==trump_suit);
-      }
-
-    } else { // add a card
+  if (adding) {
+    if (action<ncards) {
+      if (!in_hand(action)) return false;
 
       return find_if(table.begin(),table.end(),
         [action](int a){ return (a/4)==(action/4); })!=table.end();
 
-    }
-  } else {
-    if (table.size()==0) return false;
-    else if (table.size()%2) { // beat or take
-      switch (action) {
-        case done: return false; break;
-        case take: return  true; break;
-      }
-    } else { // add or done
+    } else {
       switch (action) {
         case done: return  true; break;
         case take: return false; break;
+      }
+    }
+  } else {
+    if (action<ncards) {
+      if (!in_hand(action)) return false;
+      if (table.size()==0) return true;
+
+      if (table.size()%2) { // need to beat
+
+        if ((table.back()%4)==(action%4)) {
+          return ((table.back()/4) <(action/4));
+        } else {
+          return ((action%4)==trump_suit);
+        }
+
+      } else { // add a card
+
+        return find_if(table.begin(),table.end(),
+          [action](int a){ return (a/4)==(action/4); })!=table.end();
+
+      }
+    } else {
+      if (table.size()==0) return false;
+      else if (table.size()%2) { // beat or take
+        switch (action) {
+          case done: return false; break;
+          case take: return  true; break;
+        }
+      } else { // add or done
+        switch (action) {
+          case done: return  true; break;
+          case take: return false; break;
+        }
       }
     }
   }
@@ -112,34 +128,61 @@ void durak::play_action(int a) {
     table.push_back(a);
     for (int i=0; i<2; ++i)
       if (nn[i]) nn[i]->set_state(a,on_table);
+    if (adding) ++adding;
   } else if (a==done) { // turn done
-    for (int card : table)
-      for (int i=0; i<2; ++i)
-        if (nn[i]) nn[i]->set_state(card,discarded);
-    table.clear();
-    deal(turn);
-    deal(other());
-  } else if (a==take) { // take
-    for (int card : table) {
-      hand[turn].push_back(card);
-      if (nn[turn   ]) nn[turn   ]->set_state(card,in_own_hand);
-      if (nn[other()]) nn[other()]->set_state(card,in_op_hand);
+    if (adding) {
+      adding = 0;
+      turn = other();
+      play_take();
+    } else {
+      for (int card : table)
+        for (int i=0; i<2; ++i)
+          if (nn[i]) nn[i]->set_state(card,discarded);
+      table.clear();
+      deal(turn);
+      deal(other());
     }
-    table.clear();
-    deal(other());
+  } else if (a==take) { // declare take
+
+    // allow oponent to add more cards
+    for (size_t i=0, ni=table.size(); i<ni; ++i)
+      for (int h : hand[other()])
+        if ((h/4)==(table[i]/4)) {
+          i = ni;
+          adding = 1;
+          break;
+        }
+
+    if (!adding) play_take();
   }
+}
+
+inline void durak::play_take() {
+  for (int card : table) {
+    hand[turn].push_back(card);
+    if (nn[turn   ]) nn[turn   ]->set_state(card,in_own_hand);
+    if (nn[other()]) nn[other()]->set_state(card,in_op_hand);
+  }
+  table.clear();
+  deal(other());
 }
 
 int durak::play() {
   if (nn[turn]) play_nn();
   else play_human();
-  if (table.size()%2==0) {
-    if (hand[0].size()==0 || hand[1].size()==0) {
-      if (deck.size()) play_action(ncards);
-      else return (hand[0].size()==0 ? 0 : 1);
-    }
+
+  if (hand[0].size()==0 || hand[1].size()==0) {
+    if (deck.size()) play_action(done);
+    else return (hand[0].size()==0 ? 0 : 1);
   }
-  turn = other();
+
+  if (adding < 2) turn = other();
+  else if (adding > hand[other()].size()) {
+    turn = other();
+    play_take();
+    turn = other();
+  }
+
   return -1;
 }
 
@@ -148,8 +191,8 @@ void durak::play_nn() {
   int a = -1;
   float max_field = -std::numeric_limits<float>::max();
   for (int i=0; i<nacts; ++i) {
-    // TODO: consider only if in_hand()
-    if (is_playable(i)) {
+    // in_hand check is only for optimization
+    if ((in_hand(i) || i>=ncards) && is_playable(i)) {
       const float field = nn[turn]->get_field(i);
       if (max_field < field) {
         max_field = field;
