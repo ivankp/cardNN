@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     cout << endl;
   }
 
-  cout << winner << " won!" << endl;
+  cout << (winner ? "Player " : "NN ") << winner << " won!" << endl;
 
   return 0;
 }

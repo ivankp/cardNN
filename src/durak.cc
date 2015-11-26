@@ -36,7 +36,7 @@ durak::durak(network* nn1, network* nn2)
   const int trump_card = deck.front();
   for (int i=0; i<2; ++i) {
     if (nn[i]) {
-      nn[i]->reset_states(trump_card%4);
+      nn[i]->reset_states(trump_suit = trump_card%4);
       nn[i]->set_state(trump_card,last_in_deck);
     }
   }
@@ -61,9 +61,7 @@ void durak::deal(int h) {
 }
 
 // TODO:
-// -- Trumps
-// -- view bottom card
-// -- give some of the same cards if taken
+// -- give some of the same-number cards if taken
 // -- play multiple cards?
 
 // Check if the card is in the currently played hand
@@ -79,8 +77,11 @@ bool durak::is_playable(int action) const {
 
     if (table.size()%2) { // need to beat
 
-      return ((table.back()%4)==(action%4))
-          && ((table.back()/4) <(action/4));
+      if ((table.back()%4)==(action%4)) {
+        return ((table.back()/4) <(action/4));
+      } else {
+        return ((action%4)==trump_suit);
+      }
 
     } else { // add a card
 

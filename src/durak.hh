@@ -5,6 +5,8 @@
 
 class durak: public rules {
 
+  int trump_suit;
+
   void deal(int h);
   void play_action(int a);
   bool in_hand(int card) const;
