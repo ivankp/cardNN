@@ -19,9 +19,9 @@ using nn_arr = array<network,3>;
 
 struct nn_wrap {
   nn_arr *nn;
-  int wins;
+  int wins, id;
   bool active;
-  nn_wrap(nn_arr* nn): nn(nn), wins(0), active(false) { }
+  nn_wrap(nn_arr* nn): nn(nn), wins(0), id(num++), active(false) { }
   nn_wrap(nn_wrap&& other)
   : nn(other.nn), wins(other.wins), active(other.active) {
     other.nn = nullptr;
@@ -36,7 +36,9 @@ struct nn_wrap {
   nn_wrap(const nn_wrap&) = delete;
   // nn_wrap& operator=(const nn_wrap&) = delete;
   ~nn_wrap() { delete nn; }
+  static int num;
 };
+int nn_wrap::num = 0;
 
 using nn_vec  = vector<nn_wrap>;
 using nn_iter = nn_vec::iterator;
@@ -128,10 +130,11 @@ int main(int argc, char **argv)
       return a.wins > b.wins;
     });
 
-  for (const auto& nn : nns)
-    cout << nn.wins << ' ';
-  cout << ": " << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
+  cout << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
        << " seconds" << endl;
+  for (const auto& nn : nns)
+    cout <<setw(5)<< nn.id <<'('<< nn.wins << ") ";
+  cout << endl;
 
   return 0;
 }
