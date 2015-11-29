@@ -2,6 +2,7 @@ CC  := gcc
 CXX := g++
 
 CXXFLAGS := -std=c++11 -Wall -O3
+CXXLIBS  := -pthread
 
 .PHONY: all test clean
 
@@ -57,7 +58,7 @@ $(BLDDIR)/%.o :
 # link executables
 $(EXEDIR)/% : $(BLDDIR)/%.o
 	@echo LD $(notdir $@)
-	@$(CXX) $(filter %.o,$^) -o $@ $(LIBS)
+	@$(CXX) $(filter %.o,$^) -o $@ $(CXXLIBS)
 
 # directories as order-only-prerequisites
 $(OBJS) $(DEPS): | $(BLDDIR)

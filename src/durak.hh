@@ -9,12 +9,12 @@ class network;
 
 class durak: public rules {
 public:
-  typedef std::array<network,3>* nnarr_ptr;
+  typedef std::array<network,3> nnarr_t;
 
 private:
   int trump_suit;
   unsigned adding;
-  std::array<nnarr_ptr,2> nn;
+  std::array<nnarr_t*,2> nn;
 
   void deal(int h);
   void play_action(int a);
@@ -22,7 +22,7 @@ private:
   bool in_hand(int card) const;
 
 public:
-  durak(std::mt19937& rand, nnarr_ptr nn1=nullptr, nnarr_ptr nn2=nullptr);
+  durak(std::mt19937& rand, nnarr_t* nn1=nullptr, nnarr_t* nn2=nullptr);
 
   virtual void print_card(int card) override;
   virtual void print_trump();

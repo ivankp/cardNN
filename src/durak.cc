@@ -30,7 +30,7 @@ enum {
   take = 37
 };
 
-durak::durak(std::mt19937& rand, nnarr_ptr nn1, nnarr_ptr nn2)
+durak::durak(std::mt19937& rand, nnarr_t* nn1, nnarr_t* nn2)
 : rules(ncards,rand), nn{nn1,nn2}
 {
   const int trump_card = deck.front();
