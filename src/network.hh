@@ -3,10 +3,14 @@
 
 #include <iosfwd>
 #include <vector>
+#include <functional>
 
 class network {
+public:
   typedef float val_t;
+  typedef std::function<val_t()> weight_dist_t;
 
+private:
   struct node { val_t field; };
   std::vector<std::vector<node>> trumps, plains;
 
@@ -25,7 +29,8 @@ public:
   network(unsigned ncards, // cards in deck (must be a multiple of 4)
           unsigned nts,    // trump states
           unsigned nps,    // plain states
-          const std::vector<unsigned>& nlayers // hidden neuron layers
+          const std::vector<unsigned>& nlayers, // hidden neuron layers
+          weight_dist_t& weight_dist
   );
 
   // Read a network from a dot file

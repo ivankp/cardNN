@@ -3,11 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <vector>
-#include <random>
 #include <stdexcept>
 #include <cmath>
-// #include <chrono>
 
 #define test(var) \
   std::cout <<"\033[36m"<< #var <<"\033[0m"<< " = " << var << std::endl;
@@ -17,28 +14,25 @@ using namespace std;
 network::network(unsigned ncards, // cards in deck (must be a multiple of 4)
                  unsigned nts,    // trump states
                  unsigned nps,    // plain states
-                 const vector<unsigned>& nlayers // hidden neuron layers
+                 const vector<unsigned>& nlayers, // hidden neuron layers
+                 weight_dist_t& weight_dist
 ): trumps(ncards/4,vector<node>(nts)),
    plains(ncards/4,vector<node>(nps)),
    states(ncards),
    layers(nlayers.size())
 {
-  // std::mt19937 gen(std::chrono::system_clock::now().time_since_epoch().count());
-  std::mt19937 gen{std::random_device{}()};
-  std::uniform_real_distribution<float> dist(-2.,2.);
-
   for (auto& nodes : trumps)
-    for (auto& x : nodes) x.field = dist(gen);
+    for (auto& x : nodes) x.field = weight_dist();
 
   for (auto& nodes : plains)
-    for (auto& x : nodes) x.field = dist(gen);
+    for (auto& x : nodes) x.field = weight_dist();
 
   for (size_t l=0, nl=layers.size(); l<nl; ++l) {
     layers[l].resize(nlayers[l]);
     for (auto& x : layers[l]) { // loop over neurons
       if (l==0) x.weights.resize(ncards);
       else x.weights.resize(nlayers[l-1]);
-      for (auto& w : x.weights) w = dist(gen);
+      for (auto& w : x.weights) w = weight_dist();
     }
   }
 }

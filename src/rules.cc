@@ -1,28 +1,24 @@
 #include "rules.hh"
 
 #include <iostream>
-#include <random>
 #include <algorithm>
-#include <numeric>
-#include <stdexcept>
+#include <utility>
 
-rules::rules(size_t deck_size, network* nn1, network* nn2)
-: deck(deck_size), nn{nn1,nn2}, turn(std::random_device{}()%2)
+rules::rules(size_t deck_size, std::mt19937& rand)
+: deck(deck_size), turn(rand()%2)
 {
   std::iota(deck.begin(), deck.end(), 0);
-  std::shuffle(deck.begin(), deck.end(), std::mt19937{std::random_device{}()});
+  std::shuffle(deck.begin(), deck.end(), rand);
 }
 
-void rules::print_hand(int h) {
-  if (nn[h]) *out << "NN     ";
-  else       *out << "Player ";
-  *out << h << ":";
+void rules::print_hand(int h, bool show) {
+  *out << "Player " << h << ":";
 
-  for (int card : hand[h]) {
+  if (show) for (int card : hand[h]) {
     *out << ' ';
     print_card(card);
   }
-  *out << std::endl;
+  *out << " (" << hand[h].size() << ')' << std::endl;
 }
 
 void rules::print_table() {

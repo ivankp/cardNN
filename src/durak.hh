@@ -3,10 +3,18 @@
 
 #include "rules.hh"
 
-class durak: public rules {
+#include <array>
 
+class network;
+
+class durak: public rules {
+public:
+  typedef std::array<network,3>* nnarr_ptr;
+
+private:
   int trump_suit;
   unsigned adding;
+  std::array<nnarr_ptr,2> nn;
 
   void deal(int h);
   void play_action(int a);
@@ -14,7 +22,7 @@ class durak: public rules {
   bool in_hand(int card) const;
 
 public:
-  durak(network* nn1=nullptr, network* nn2=nullptr);
+  durak(std::mt19937& rand, nnarr_ptr nn1=nullptr, nnarr_ptr nn2=nullptr);
 
   virtual void print_card(int card) override;
   virtual void print_trump();

@@ -30,14 +30,16 @@ enum {
   take = 37
 };
 
-durak::durak(network* nn1, network* nn2)
-: rules(ncards,nn1,nn2)
+durak::durak(std::mt19937& rand, nnarr_ptr nn1, nnarr_ptr nn2)
+: rules(ncards,rand), nn{nn1,nn2}
 {
   const int trump_card = deck.front();
   for (int i=0; i<2; ++i) {
     if (nn[i]) {
-      nn[i]->reset_states(trump_suit = trump_card%4);
-      nn[i]->set_state(trump_card,last_in_deck);
+      for (network& net : *nn[i]) {
+        net.reset_states(trump_suit = trump_card%4);
+        net.set_state(trump_card,last_in_deck);
+      }
     }
   }
 
@@ -58,7 +60,9 @@ void durak::deal(int h) {
     int card = deck.back();
     deck.pop_back();
     hand[h].push_back(card);
-    if (nn[h]) nn[h]->set_state(card,in_own_hand);
+    if (nn[h])
+      for (network& net : *nn[h])
+        net.set_state(card,in_own_hand);
   }
 }
 
@@ -127,7 +131,9 @@ void durak::play_action(int a) {
     hand[turn].remove(a);
     table.push_back(a);
     for (int i=0; i<2; ++i)
-      if (nn[i]) nn[i]->set_state(a,on_table);
+      if (nn[i])
+        for (network& net : *nn[i])
+          net.set_state(a,on_table);
     if (adding) ++adding;
   } else if (a==done) { // turn done
     if (adding) {
@@ -137,7 +143,9 @@ void durak::play_action(int a) {
     } else {
       for (int card : table)
         for (int i=0; i<2; ++i)
-          if (nn[i]) nn[i]->set_state(card,discarded);
+          if (nn[i])
+            for (network& net : *nn[i])
+              net.set_state(card,discarded);
       table.clear();
       deal(turn);
       deal(other());
@@ -160,8 +168,12 @@ void durak::play_action(int a) {
 inline void durak::play_take() {
   for (int card : table) {
     hand[turn].push_back(card);
-    if (nn[turn   ]) nn[turn   ]->set_state(card,in_own_hand);
-    if (nn[other()]) nn[other()]->set_state(card,in_op_hand);
+    if (nn[turn])
+      for (network& net : *nn[turn])
+        net.set_state(card,in_own_hand);
+    if (nn[other()])
+      for (network& net : *nn[other()])
+        net.set_state(card,in_op_hand);
   }
   table.clear();
   deal(other());
@@ -187,13 +199,19 @@ int durak::play() {
 }
 
 void durak::play_nn() {
-  nn[turn]->eval();
+  const size_t nni = (
+    adding ? 2 : table.size()%2
+  );
+  // 0 - lead
+  // 1 - beat or take
+  // 2 - adding
+  (*nn[turn])[nni].eval();
   int a = -1;
   float max_field = -std::numeric_limits<float>::max();
   for (int i=0; i<nacts; ++i) {
     // in_hand check is only for optimization
     if ((in_hand(i) || i>=ncards) && is_playable(i)) {
-      const float field = nn[turn]->get_field(i);
+      const float field = (*nn[turn])[nni].get_field(i);
       if (max_field < field) {
         max_field = field;
         a = i;
