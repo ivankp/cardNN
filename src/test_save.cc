@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <random>
+#include <chrono>
 
 #include "network.hh"
 
@@ -44,7 +46,12 @@ const char* print_act(int act) {
 
 int main(int argc, char** argv)
 {
-  network nn(ncards,4,3,{5,4,3,4,5,ncards+2});
+  std::mt19937 gen;
+  gen.seed(std::chrono::system_clock::now().time_since_epoch().count());
+  std::uniform_real_distribution<network::val_t> weight_dist(-2.,2.);
+  network::weight_dist_t weight_dist_fcn = [&](){ return weight_dist(gen); };
+
+  network nn(ncards,4,3,{5,4,3,4,5,ncards+2},weight_dist_fcn);
 
   ofstream file(argv[1]);
   nn.save(file,print_card,print_act);

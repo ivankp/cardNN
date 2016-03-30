@@ -5,8 +5,8 @@
 #include <vector>
 #include <array>
 #include <tuple>
+#include <iterator>
 #include <thread>
-#include <mutex>
 
 #include "network.hh"
 #include "durak.hh"
@@ -40,8 +40,6 @@ struct nn_wrap {
 };
 int nn_wrap::num = 0;
 
-mutex match_mut;
-
 class tourney {
   static std::mt19937 gen;
   static std::uniform_real_distribution<network::val_t> weight_dist;
@@ -54,6 +52,7 @@ class tourney {
   vector<tuple<nn_it,nn_it,bool>> pairs;
 
   void play_match(decltype(pairs)::reference nnpair) {
+    get<2>(nnpair) = true;
     auto& nnw1 = *get<0>(nnpair);
     auto& nnw2 = *get<1>(nnpair);
 
@@ -66,20 +65,10 @@ class tourney {
 
       ++wins[winner];
     }
-
-    ++(get<0>(wins)>get<1>(wins) ? nnw1.wins : nnw2.wins);
-    nnw1.active = false;
-    nnw1.active = false;
-
     cout << nnw1.id <<':'<< nnw2.id << "  "
          << get<0>(wins) <<':'<< get<1>(wins) << endl;
+    ++(get<0>(wins)>get<1>(wins) ? nnw1.wins : nnw2.wins);
   }
-
-  // prevent copying and moving
-  tourney(const tourney& that) = delete;
-  tourney& operator=(const tourney&) = delete;
-  tourney(tourney&& that) = delete;
-  tourney& operator=(tourney&&) = delete;
 
 public:
   tourney(unsigned num_nets, unsigned match_len): match_len(match_len) {
@@ -97,40 +86,6 @@ public:
     });
   }
 
-/*
-  void operator()() {
-    auto t1 = chrono::steady_clock::now();
-
-    for ( bool all_done; ; ) {
-      match_mut.lock();
-
-      all_done = true;
-      auto pair = pairs.begin();
-      for (auto end=pairs.end(); pair!=end; ++pair) {
-        cout << get<0>(*pair)->id << " " << get<1>(*pair)->id << endl;
-        if (get<2>(*pair)) continue;
-        all_done = false;
-        if (!get<0>(*pair)->active && !get<1>(*pair)->active) {
-          get<0>(*pair)->active = true;
-          get<1>(*pair)->active = true;
-          get<2>(*pair) = true;
-          break;
-        }
-      }
-      match_mut.unlock();
-
-      if (all_done) break;
-      else play_match(*pair);
-    }
-
-    auto t2 = chrono::steady_clock::now();
-    cout << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
-         << " seconds" << endl;
-
-    for (const auto& nn : nns)
-      cout << nn.id << ": " << nn.wins << endl;
-  }
-  */
   void operator()() {
     auto t1 = chrono::steady_clock::now();
 
@@ -153,16 +108,8 @@ network::weight_dist_t tourney::weight_dist_fcn(
 
 int main(int argc, char **argv)
 {
-  tourney t(3,51);
-  t();
-
-  // vector<thread> threads;
-  // const unsigned num_threads = thread::hardware_concurrency();
-  // threads.reserve(num_threads);
-  // for (unsigned i=0; i<num_threads; ++i)
-  //   threads.emplace_back(t);
-  //
-  // for(auto& thread : threads) thread.join();
+  thread t(tourney(10,51));
+  t.join();
 
   return 0;
 }
