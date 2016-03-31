@@ -1,11 +1,8 @@
 CC  := gcc
 CXX := g++
 
-ROOT_CFLAGS := $(shell root-config --cflags)
-ROOT_LIBS   := $(shell root-config --libs)
-
-CXXFLAGS := -std=c++11 -Wall -g $(ROOT_CFLAGS)
-CXXLIBS  := -pthread $(ROOT_LIBS)
+CXXFLAGS := -std=c++11 -Wall -O3
+CXXLIBS  := -pthread
 
 .PHONY: all test clean
 
