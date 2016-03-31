@@ -129,7 +129,7 @@ public:
 
       all_done = true;
       for (auto& pair : pairs) {
-        cout << get<0>(pair)->id << " " << get<1>(pair)->id << endl;
+        // cout << get<0>(pair)->id << " " << get<1>(pair)->id << endl;
         if (!get<2>(pair) && !get<0>(pair)->active && !get<1>(pair)->active) {
           get<0>(pair)->active.store(true);
           get<1>(pair)->active.store(true);
@@ -149,16 +149,7 @@ public:
   }
 
   void sequential() {
-    auto t1 = chrono::steady_clock::now();
-
     for (auto& pair : pairs) play_match(pair);
-
-    auto t2 = chrono::steady_clock::now();
-    cout << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
-         << " seconds" << endl;
-
-    for (const auto& nn : nns)
-      cout << nn.id << ": " << nn.wins << endl;
   }
 };
 
@@ -172,6 +163,8 @@ int main(int argc, char **argv)
 {
   tourney t(10,31);
 
+  auto t1 = chrono::steady_clock::now();
+
   // t.sequential();
   // std::thread(&tourney::sequential,&t).join();
 
@@ -180,6 +173,10 @@ int main(int argc, char **argv)
   for (unsigned i=0; i<num_threads; ++i)
     threads.emplace_back(&tourney::parallel,&t);
   for (auto& thread : threads) thread.join();
+
+  auto t2 = chrono::steady_clock::now();
+  cout << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
+       << " seconds" << endl;
 
   return 0;
 }
