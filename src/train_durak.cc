@@ -7,6 +7,7 @@
 #include <tuple>
 #include <thread>
 #include <mutex>
+#include <atomic>
 
 #include "network.hh"
 #include "durak.hh"
@@ -31,16 +32,32 @@ inline void for_each_pair(
 struct nn_wrap {
   durak::nnarr_t *nn_arr;
   int id, wins;
-  bool active;
+  std::atomic_bool active;
 
   nn_wrap(durak::nnarr_t *nn_arr)
   : nn_arr(nn_arr), id(num++), wins(0), active(false) { }
+  ~nn_wrap() { }
+
+  // allow moving
+  nn_wrap(nn_wrap&& w) noexcept
+  : nn_arr(w.nn_arr), id(w.id), wins(w.wins), active(w.active.load()) { }
+  nn_wrap& operator=(nn_wrap&& w) {
+    nn_arr = w.nn_arr;
+    id = w.id;
+    wins = w.wins;
+    active = w.active.load();
+    return *this;
+  }
+
+  // forbid copying
+  nn_wrap(const nn_wrap&) = delete;
+  nn_wrap& operator=(const nn_wrap&) = delete;
 
   static int num;
 };
 int nn_wrap::num = 0;
 
-mutex match_mut;
+unsigned num_threads = thread::hardware_concurrency();
 
 class tourney {
   static std::mt19937 gen;
@@ -48,12 +65,17 @@ class tourney {
   static network::weight_dist_t weight_dist_fcn;
 
   unsigned match_len;
+  std::atomic_uint threads_running;
+  mutex match_mut;
 
   vector<nn_wrap> nns;
   using nn_it = decltype(nns)::iterator;
   vector<tuple<nn_it,nn_it,bool>> pairs;
 
   void play_match(decltype(pairs)::reference nnpair) {
+    if ((++threads_running) == num_threads)
+      match_mut.lock();
+
     auto& nnw1 = *get<0>(nnpair);
     auto& nnw2 = *get<1>(nnpair);
 
@@ -68,8 +90,10 @@ class tourney {
     }
 
     ++(get<0>(wins)>get<1>(wins) ? nnw1.wins : nnw2.wins);
-    nnw1.active = false;
-    nnw1.active = false;
+    nnw1.active.store(false);
+    nnw2.active.store(false);
+    if ((threads_running--) == num_threads)
+      match_mut.unlock();
 
     cout << nnw1.id <<':'<< nnw2.id << "  "
          << get<0>(wins) <<':'<< get<1>(wins) << endl;
@@ -82,7 +106,9 @@ class tourney {
   tourney& operator=(tourney&&) = delete;
 
 public:
-  tourney(unsigned num_nets, unsigned match_len): match_len(match_len) {
+  tourney(unsigned num_nets, unsigned match_len)
+  : match_len(match_len), threads_running(0)
+  {
     // test(gen())
     nns.reserve(num_nets);
     for (unsigned i=0; i<num_nets; ++i)
@@ -97,41 +123,32 @@ public:
     });
   }
 
-/*
-  void operator()() {
-    auto t1 = chrono::steady_clock::now();
-
+  void parallel() {
     for ( bool all_done; ; ) {
       match_mut.lock();
 
       all_done = true;
-      auto pair = pairs.begin();
-      for (auto end=pairs.end(); pair!=end; ++pair) {
-        cout << get<0>(*pair)->id << " " << get<1>(*pair)->id << endl;
-        if (get<2>(*pair)) continue;
-        all_done = false;
-        if (!get<0>(*pair)->active && !get<1>(*pair)->active) {
-          get<0>(*pair)->active = true;
-          get<1>(*pair)->active = true;
-          get<2>(*pair) = true;
+      for (auto& pair : pairs) {
+        cout << get<0>(pair)->id << " " << get<1>(pair)->id << endl;
+        if (!get<2>(pair) && !get<0>(pair)->active && !get<1>(pair)->active) {
+          get<0>(pair)->active.store(true);
+          get<1>(pair)->active.store(true);
+          get<2>(pair) = true;
+          match_mut.unlock();
+          all_done = false;
+          play_match(pair);
           break;
         }
       }
-      match_mut.unlock();
 
-      if (all_done) break;
-      else play_match(*pair);
+      if (all_done) {
+        match_mut.unlock();
+        break;
+      }
     }
-
-    auto t2 = chrono::steady_clock::now();
-    cout << chrono::duration_cast<chrono::duration<double>>(t2-t1).count()
-         << " seconds" << endl;
-
-    for (const auto& nn : nns)
-      cout << nn.id << ": " << nn.wins << endl;
   }
-  */
-  void operator()() {
+
+  void sequential() {
     auto t1 = chrono::steady_clock::now();
 
     for (auto& pair : pairs) play_match(pair);
@@ -153,16 +170,16 @@ network::weight_dist_t tourney::weight_dist_fcn(
 
 int main(int argc, char **argv)
 {
-  tourney t(3,51);
-  t();
+  tourney t(10,31);
 
-  // vector<thread> threads;
-  // const unsigned num_threads = thread::hardware_concurrency();
-  // threads.reserve(num_threads);
-  // for (unsigned i=0; i<num_threads; ++i)
-  //   threads.emplace_back(t);
-  //
-  // for(auto& thread : threads) thread.join();
+  // t.sequential();
+  // std::thread(&tourney::sequential,&t).join();
+
+  vector<thread> threads;
+  threads.reserve(num_threads);
+  for (unsigned i=0; i<num_threads; ++i)
+    threads.emplace_back(&tourney::parallel,&t);
+  for (auto& thread : threads) thread.join();
 
   return 0;
 }
